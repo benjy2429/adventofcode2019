@@ -2,6 +2,18 @@ const fs = require('fs');
 
 const FILE_NAME = 'input';
 
+const AVAILABLE_ORE = 1000000000000;
+
+const input = `157 ORE => 5 NZVS
+165 ORE => 6 DCFZ
+44 XJWVT, 5 KHKGT, 1 QDVJ, 29 NZVS, 9 GPVTF, 48 HKGWZ => 1 FUEL
+12 HKGWZ, 1 GPVTF, 8 PSHF => 9 QDVJ
+179 ORE => 7 PSHF
+177 ORE => 5 HKGWZ
+7 DCFZ, 7 PSHF => 2 XJWVT
+165 ORE => 2 GPVTF
+3 DCFZ, 7 NZVS, 5 HKGWZ, 10 PSHF => 8 KHKGT`;
+
 const CHEMICALS = {
   ORE: 'ORE',
   FUEL: 'FUEL'
@@ -9,11 +21,13 @@ const CHEMICALS = {
 
 const state = {
   reactions: {},
-  usedChemicals: {}
+  usedChemicals: {},
+  mostFuel: 0,
+  oreUsedPerCycle: 0
 };
 
 const parseInput = () => {
-  const input = fs.readFileSync(`${__dirname}/${FILE_NAME}`, 'utf8');
+  // const input = fs.readFileSync(`${__dirname}/${FILE_NAME}`, 'utf8');
 
   input.split('\n').forEach(rawReaction => {
     const [rawInput, rawOutput] = rawReaction.split(' => ');
@@ -55,17 +69,42 @@ const allChemicalsResolved = () => {
   return remainingChemicals.length === 1 && remainingChemicals[0] === CHEMICALS.ORE;
 };
 
+const cycleRepeated = () => Object.keys(state.usedChemicals)
+  .filter(c => c !== CHEMICALS.ORE)
+  .every(c => state.usedChemicals[c] === 0);
+
 const run = () => {
   parseInput();
   state.usedChemicals[CHEMICALS.FUEL] = 1;
+  state.usedChemicals[CHEMICALS.ORE] = 0;
 
-  while (!allChemicalsResolved()) {
-    const [nextChemical] = Object.keys(state.usedChemicals)
-      .filter(c => state.usedChemicals[c] > 0 && c !== CHEMICALS.ORE);
+  while (!cycleRepeated()) {
+    // console.log(Object.keys(state.usedChemicals)
+    //   .filter(c => c !== CHEMICALS.ORE)
+    //   .map(c => state.usedChemicals[c]));
+    while (!allChemicalsResolved()) {
+      const [nextChemical] = Object.keys(state.usedChemicals)
+        .filter(c => state.usedChemicals[c] > 0 && c !== CHEMICALS.ORE);
 
-    resolveInputs(nextChemical);
+      resolveInputs(nextChemical);
+    }
+
+    if (state.usedChemicals[CHEMICALS.ORE] < AVAILABLE_ORE) {
+      state.mostFuel += 1;
+    }
+
+    state.usedChemicals[CHEMICALS.FUEL] += 1;
+    process.exit();
   }
+
+  console.log(state.usedChemicals);
+
+  state.oreUsedPerCycle = state.usedChemicals[CHEMICALS.ORE];
+
+  console.log(state.oreUsedPerCycle);
 };
 
+console.time('timer');
 run();
-console.log(`1 FUEL requires a minimum of ${state.usedChemicals[CHEMICALS.ORE]} ORE`);
+console.timeEnd('timer');
+console.log(`1 trillion ORE can produce a maximum of ${state.mostFuel} FUEL`);
